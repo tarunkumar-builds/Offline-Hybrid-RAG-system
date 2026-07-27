@@ -39,6 +39,13 @@ class EmbeddingGenerator:
                 normalize_embeddings=True,
                 show_progress_bar=False,
             )
+
+            logger.info(
+                "Embeddings generated successfully. Shape={}, dtype={}",
+                vectors.shape,
+                vectors.dtype,
+            )
+
             return np.ascontiguousarray(vectors, dtype=np.float32)
         except Exception as error:  # Model backends expose heterogeneous exception types.
             logger.exception("Embedding generation failed")

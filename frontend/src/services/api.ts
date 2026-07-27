@@ -2,7 +2,7 @@ import axios from "axios";
 import type { BenchmarkResponse, DocumentRecord, HealthResponse, ModelsResponse, QueryResponse, SystemConfigResponse, UploadResponse } from "../types/api";
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1",
+  baseURL: "http://127.0.0.1:8000/api/v1",
   timeout: 90_000,
   headers: { "X-Request-ID": crypto.randomUUID() },
 });

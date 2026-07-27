@@ -10,7 +10,7 @@ class GenerationConfig(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    model_name: str = "gemma3"
+    model_name: str = "qwen3:latest"
     base_url: str = "http://127.0.0.1:11434"
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
     top_p: float = Field(default=0.9, gt=0.0, le=1.0)

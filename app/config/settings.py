@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     reranker_batch_size: int = Field(default=16, ge=1)
     reranker_device: str = "cpu"
     reranker_cache_size: int = Field(default=128, ge=1)
-    ollama_model: str = "gemma3"
+    ollama_model: str = "qwen3:latest"
     ollama_base_url: str = "http://127.0.0.1:11434"
     generation_temperature: float = Field(default=0.2, ge=0.0, le=2.0)
     generation_top_p: float = Field(default=0.9, gt=0.0, le=1.0)

@@ -23,23 +23,54 @@ class OllamaClient:
         if self._config.streaming:
             return "".join(self.stream(prompt))
         payload = self._payload(prompt, stream=False)
+
+        last_error: Exception | None = None
+
         for attempt in range(self._config.retries + 1):
             try:
                 response = self._client.post("/api/generate", json=payload)
                 response.raise_for_status()
                 return self._response_text(response.json())
+
             except httpx.TimeoutException as error:
-                failure = OllamaConnectionError(f"Ollama timed out after {self._config.timeout_seconds}s")
+                logger.exception("Timeout contacting Ollama")
+                last_error = error
+                failure = OllamaConnectionError(
+                    f"Ollama timed out after {self._config.timeout_seconds}s"
+                )
+
             except httpx.RequestError as error:
-                failure = OllamaConnectionError(f"Unable to connect to Ollama: {error}")
+                logger.exception("RequestError contacting Ollama")
+                last_error = error
+                failure = OllamaConnectionError(
+                    f"Unable to connect to Ollama: {error}"
+                )
+
             except httpx.HTTPStatusError as error:
+                logger.error("Status code: {}", error.response.status_code)
+                logger.error("Response body: {}", error.response.text)
+
+                last_error = error
                 message = self._error_message(error.response)
-                failure = OllamaResponseError(f"Ollama rejected model '{self._config.model_name}': {message}")
+                failure = OllamaResponseError(
+                    f"Ollama rejected model '{self._config.model_name}': {message}"
+                )
+
             except (TypeError, ValueError, OllamaResponseError) as error:
-                failure = OllamaResponseError(f"Invalid Ollama response: {error}")
+                last_error = error
+                failure = OllamaResponseError(
+                    f"Invalid Ollama response: {error}"
+                )
+
             if attempt == self._config.retries:
-                raise failure from error
-            logger.warning("Ollama request failed; retrying ({}/{})", attempt + 1, self._config.retries)
+                raise failure from last_error
+
+            logger.warning(
+                "Ollama request failed; retrying ({}/{})",
+                attempt + 1,
+                self._config.retries,
+            )
+
         raise OllamaResponseError("Ollama request unexpectedly completed without a response")
 
     def stream(self, prompt: str) -> Iterator[str]:

@@ -73,6 +73,7 @@ class CrossEncoderReranker:
         except RerankerConfigurationError:
             raise
         except Exception as error:
+            logger.exception("Failed to load reranker model")
             raise RerankerConfigurationError(
                 f"Unable to load local reranker model '{model_name}': {error}"
             ) from error
