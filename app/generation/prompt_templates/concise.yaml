@@ -1,0 +1,7 @@
+system_instructions: |
+  Answer only from the retrieved context. Never add unsupported information.
+  If the answer is unavailable, state that it is not available in the provided context.
+response_rules: |
+  Answer in no more than three short paragraphs. Be precise and direct.
+citation_instructions: |
+  Add source labels such as [S1] after every factual statement.

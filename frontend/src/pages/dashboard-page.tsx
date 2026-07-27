@@ -1,0 +1,17 @@
+import { Activity, Database, FileText, MessageSquareText, RefreshCw } from "lucide-react";
+import { Link } from "react-router-dom";
+import type { ReactNode } from "react";
+import { StatusBadge } from "../components/status-badge";
+import { useHealth, useModels } from "../hooks/use-rag";
+
+export function DashboardPage() {
+  const health = useHealth(); const models = useModels();
+  if (health.isLoading) return <Loading label="Checking local services…" />;
+  if (health.isError || !health.data) return <Failure onRetry={() => health.refetch()} />;
+  const data = health.data;
+  return <div className="space-y-6"><div><p className="text-sm font-semibold text-teal-700">Workspace overview</p><h2 className="mt-1 text-3xl font-bold tracking-tight">Offline knowledge, ready when you are.</h2><p className="mt-2 text-slate-500">Monitor your local RAG workspace and jump straight into work.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Stat icon={FileText} label="Indexed documents" value={data.indexed_documents} /><Stat icon={Database} label="Indexed chunks" value={data.vector_count} /><Stat icon={Activity} label="Backend health" value={<StatusBadge value={data.status} />} /><Stat icon={Activity} label="Ollama" value={<StatusBadge value={data.ollama_status} />} /></div><div className="grid gap-6 lg:grid-cols-3"><section className="card lg:col-span-2"><h3 className="font-semibold">Quick actions</h3><div className="mt-4 grid gap-3 sm:grid-cols-2"><Action to="/documents" icon={FileText} title="Manage documents" body="Upload PDFs and maintain your local collection." /><Action to="/chat" icon={MessageSquareText} title="Ask a question" body="Search your indexed documents with citations." /></div></section><section className="card"><h3 className="font-semibold">Current model</h3><p className="mt-3 break-all text-sm font-medium">{models.data?.llm_model ?? "Loading…"}</p><p className="mt-1 text-xs text-slate-500">Embedding: {data.embedding_model}</p><p className="mt-1 text-xs text-slate-500">Reranker: {data.reranker_model}</p></section></div></div>;
+}
+function Stat({ icon: Icon, label, value }: { icon: typeof FileText; label: string; value: ReactNode }) { return <section className="card"><div className="flex items-center justify-between"><p className="text-sm text-slate-500">{label}</p><Icon className="text-teal-700" size={19} /></div><div className="mt-4 text-2xl font-bold">{value}</div></section>; }
+function Action({ to, icon: Icon, title, body }: { to: string; icon: typeof FileText; title: string; body: string }) { return <Link to={to} className="rounded-xl border border-slate-200 p-4 transition hover:border-teal-500 hover:bg-teal-50 dark:border-slate-700 dark:hover:bg-teal-950"><Icon className="text-teal-700" size={20} /><h4 className="mt-3 font-semibold">{title}</h4><p className="mt-1 text-sm text-slate-500">{body}</p></Link>; }
+export function Loading({ label }: { label: string }) { return <div className="card flex min-h-40 items-center justify-center gap-3 text-slate-500"><RefreshCw className="animate-spin" size={18} />{label}</div>; }
+export function Failure({ onRetry }: { onRetry: () => void }) { return <div className="card text-center"><h2 className="font-semibold">Backend unavailable</h2><p className="mt-2 text-sm text-slate-500">Start the FastAPI service, then try again.</p><button className="btn-primary mt-4" onClick={onRetry}>Retry connection</button></div>; }
