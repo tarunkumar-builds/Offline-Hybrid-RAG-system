@@ -54,10 +54,23 @@ class EmbeddingGenerator:
     def _get_model(self):
         if self._model is None:
             try:
-                from sentence_transformers import SentenceTransformer
 
-                logger.info("Loading embedding model: {}", self._model_name)
-                self._model = SentenceTransformer(self._model_name, local_files_only=True)
+                from sentence_transformers import SentenceTransformer
+                import torch
+
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+
+                logger.info(
+                    "Loading embedding model: {} on {}",
+                    self._model_name,
+                    device,
+                )
+
+                self._model = SentenceTransformer(
+                    self._model_name,
+                    device=device,
+                    local_files_only=True,
+                )
             except Exception as error:
                 raise EmbeddingError(
                     f"Unable to load local model '{self._model_name}'. Download it before offline use: {error}"
