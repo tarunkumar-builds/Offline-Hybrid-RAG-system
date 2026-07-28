@@ -3,7 +3,8 @@
 from pydantic import BaseModel, Field, field_validator
 
 from app.generation.models import Citation
-retrieved_chunks: tuple[RetrievedChunk, ...]
+from app.retrieval.models import RetrievedChunk
+from app.reranker.models import RerankedChunk
 
 
 class QueryRequest(BaseModel):
@@ -67,7 +68,7 @@ class QueryResponse(BaseModel):
         description="Supporting citations."
     )
 
-    retrieved_chunks: tuple[RetrievedChunk, ...] = Field(
+    retrieved_chunks: tuple[RerankedChunk, ...] = Field(
         default_factory=tuple,
         description="Chunks used to generate the answer."
     )

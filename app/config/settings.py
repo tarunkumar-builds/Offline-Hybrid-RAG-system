@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="RAG_", extra="ignore")
 
     embedding_model: str = "BAAI/bge-small-en-v1.5"
-    chunk_size: int = Field(default=700, ge=1)
-    chunk_overlap: int = Field(default=100, ge=0)
+    chunk_size: int = Field(default=450, ge=1)
+    chunk_overlap: int = Field(default=50, ge=0)
     documents_dir: Path = Path("documents")
     vector_index_path: Path = Path("vector_store/documents.faiss")
     database_path: Path = Path("metadata/metadata.db")

@@ -15,7 +15,7 @@ class GenerationConfig(BaseModel):
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
     top_p: float = Field(default=0.9, gt=0.0, le=1.0)
     max_tokens: int = Field(default=512, ge=1)
-    timeout_seconds: float = Field(default=60.0, gt=0.0)
+    timeout_seconds: float = Field(default=200.0, gt=0.0)
     prompt_template: str = "default"
     streaming: bool = False
     retries: int = Field(default=2, ge=0)
