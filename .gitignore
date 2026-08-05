@@ -1,18 +1,71 @@
+# ==========================================
+# Environment Variables
+# ==========================================
 .env
+.env.local
+
+# ==========================================
+# Python Virtual Environment
+# ==========================================
 .venv/
-frontend/node_modules/
-frontend/dist/
+
+# ==========================================
+# Python Cache
+# ==========================================
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .coverage
-logs/*.log
-documents/raw/*.pdf
-documents/processed/*.json
-vector_store/*.faiss
-metadata/*.db
-!documents/raw/.gitkeep
-!documents/processed/.gitkeep
-!vector_store/.gitkeep
-!metadata/.gitkeep
+
+# ==========================================
+# Frontend
+# ==========================================
+frontend/node_modules/
+frontend/dist/
+
+# ==========================================
+# Logs
+# ==========================================
+logs/*
 !logs/.gitkeep
+*.log
+
+# ==========================================
+# Runtime Documents
+# ==========================================
+documents/raw/*
+!documents/raw/.gitkeep
+
+documents/processed/*
+!documents/processed/.gitkeep
+
+# ==========================================
+# Vector Store
+# ==========================================
+vector_store/*
+!vector_store/.gitkeep
+*.faiss
+
+# ==========================================
+# Metadata Database
+# ==========================================
+metadata/*
+!metadata/.gitkeep
+*.db
+
+# ==========================================
+# Evaluation Reports
+# ==========================================
+reports/
+
+# ==========================================
+# IDE
+# ==========================================
+.vscode/
+.idea/
+
+# ==========================================
+# Operating System Files
+# ==========================================
+.DS_Store
+Thumbs.db
