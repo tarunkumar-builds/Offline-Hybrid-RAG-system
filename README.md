@@ -1,113 +1,166 @@
-# Offline Hybrid RAG — Phase 1
+# Offline Hybrid RAG
 
-Phase 1 implements an entirely local PDF ingestion pipeline. It extracts text with PyMuPDF, cleans it, creates sentence-aware chunks, generates normalized BGE embeddings, stores vectors in FAISS, and stores metadata in SQLite. No cloud API is used at runtime.
+Offline Hybrid RAG is a local-first document question-answering system built with FastAPI, SQLite, FAISS, SentenceTransformers, a local reranker, Ollama, and a React/Vite frontend. It ingests PDFs, builds a local vector and metadata index, retrieves evidence with hybrid search, reranks results, and generates grounded answers with citations.
+
+## What Happens On A Fresh Clone
+
+On a fresh clone, the repository contains source code, configuration templates, and empty placeholder directories only.
+
+- `documents/raw/` starts empty and receives copied source PDFs after ingestion.
+- `documents/processed/` starts empty and receives chunked document JSON after ingestion.
+- `metadata/metadata.db` does not exist yet and is created after the first successful ingestion.
+- `vector_store/documents.faiss` does not exist yet and is created after the first successful ingestion.
+- `logs/application.jsonl` is created when the backend or ingestion CLI runs.
+
+The backend can start on a fresh clone, but querying is only useful after you ingest at least one PDF and generate the local corpus artifacts.
 
 ## Prerequisites
 
 - Python 3.12
-- A locally available `BAAI/bge-small-en-v1.5` Sentence Transformers model
+- Node.js and npm
+- Ollama installed locally
+- Local access to the required Hugging Face models before offline use
 
-The embedding generator is deliberately configured with `local_files_only=True`. Before running in a disconnected environment, make the model available in the local Hugging Face cache through an approved internal/offline distribution process.
+Default runtime models in the current code:
 
-## Installation
+- Embedding model: `BAAI/bge-small-en-v1.5`
+- Reranker model: `BAAI/bge-reranker-base`
+- Ollama generation model: `qwen3:latest`
+
+Both Hugging Face models are loaded with `local_files_only=True`, so they must already exist in the local Hugging Face cache before you run the system fully offline.
+
+## First-Run Setup
+
+1. Clone the repository and enter the project directory.
 
 ```powershell
-cd C:\Users\Tarun kumar\OneDrive\Documents\Hybrid_offline_RAG
+git clone <your-repo-url>
+cd Hybrid_offline_RAG
+```
+
+2. Create and activate the Python virtual environment.
+
+```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
+```
+
+3. Install backend dependencies.
+
+```powershell
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
+
+4. Create your backend environment file from the template.
+
+```powershell
 Copy-Item .env.example .env
 ```
 
-Set any local path or model overrides in `.env`. All paths are relative to the project directory unless made absolute.
+5. Install frontend dependencies.
 
-## Ingest documents
+```powershell
+cd frontend
+npm install
+cd ..
+```
 
-Place PDFs anywhere outside the generated storage directories, then index one file or a directory:
+6. Review the environment templates.
+
+- `.env.example` defines backend defaults such as the FAISS path, SQLite path, Ollama URL, and allowed frontend origins.
+- `frontend/.env.example` defines `VITE_API_BASE_URL` for the frontend.
+
+Create a frontend env file if you want to override the default local API URL:
+
+```powershell
+Copy-Item frontend/.env.example frontend/.env.local
+```
+
+## Prepare Models For Offline Use
+
+### Ollama Model
+
+Install and start Ollama, then pull the exact default backend model:
+
+```powershell
+ollama serve
+ollama pull qwen3:latest
+```
+
+If you want to use a different Ollama model, update `RAG_OLLAMA_MODEL` in `.env` to match the model you pulled locally.
+
+### Hugging Face Embedding And Reranker Models
+
+The backend expects these local models to be available before offline execution:
+
+- `BAAI/bge-small-en-v1.5`
+- `BAAI/bge-reranker-base`
+
+Because the code uses `local_files_only=True`, these models are not downloaded automatically at runtime. Prepare them in your local Hugging Face cache while you still have approved network access, or distribute them through your offline model delivery process. After they exist in the local cache, the application can load them offline.
+
+## Ingest Documents
+
+Add your own PDFs and ingest either a single file or a directory:
 
 ```powershell
 python -m app.ingestion.cli C:\path\to\report.pdf
 python -m app.ingestion.cli C:\path\to\pdf-folder
 ```
 
-The pipeline hashes every source PDF using SHA256. A file whose content was already indexed is safely skipped. New documents are copied to `documents/raw/`, their cleaned chunk payload is saved to `documents/processed/`, vectors are written to `vector_store/documents.faiss`, and metadata is stored in `metadata/metadata.db`.
+During ingestion, the pipeline:
 
-## Hybrid retrieval
+- hashes the source PDF to detect duplicates
+- copies the original PDF into `documents/raw/`
+- cleans and chunks document text into `documents/processed/`
+- stores vectors in `vector_store/documents.faiss`
+- stores metadata in `metadata/metadata.db`
 
-Phase 2 adds a fully local hybrid retriever. It embeds a query once using the cached local BGE model, searches normalized FAISS vectors for cosine similarity, searches SQLite-backed chunk text with BM25, and combines both ranked lists using Reciprocal Rank Fusion (RRF): `score = sum(1 / (60 + rank))`.
+These generated artifacts are local runtime data and are intentionally not committed to Git.
 
-Use it from Python after indexing at least one PDF:
+## Start The Backend
 
-```python
-from app.config import Settings
-from app.retrieval import HybridRetriever, SearchRequest
-
-retriever = HybridRetriever(Settings())
-results = retriever.search(SearchRequest(query="What are the key findings?", limit=3))
-for result in results:
-    print(result.document_name, result.page_number, result.rrf_score, result.text)
-```
-
-`SearchRequest` accepts optional `SearchFilters` for `document_name`, `document_id`, or `page_number`. Query embeddings and recent search responses use bounded LRU caches. The retriever reports embedding, FAISS, BM25, fusion, and total latency through Loguru.
-
-## Cross-encoder reranking
-
-Phase 3 rescoring improves the retrieval quality before any generation happens. Hybrid retrieval is fast: its bi-encoder represents the query and chunks independently for FAISS, while BM25 supplies complementary keyword matches. A cross-encoder instead reads each query-and-chunk pair together, producing a more precise relevance score for the small candidate set.
-
-The local `BAAI/bge-reranker-base` model is loaded once, scores candidates in batches, and returns the best context chunks in descending `rerank_score` order. It is offline-only (`local_files_only=True`), uses configurable input/output limits, device, and cache size, and accepts Phase 2 `HybridResult` values directly.
-
-```python
-from app.config import Settings
-from app.reranker import RerankingPipeline
-from app.retrieval import HybridRetriever, SearchRequest
-
-settings = Settings()
-candidates = HybridRetriever(settings).search(SearchRequest(query="key findings", limit=20))
-contexts = RerankingPipeline.from_settings(settings).rerank("key findings", candidates)
-```
-
-## Local answer generation
-
-Phase 4 completes the offline pipeline: hybrid retrieval selects broad candidates, the cross-encoder narrows them to the most relevant chunks, and Ollama generates a grounded answer from a YAML-built prompt. The default model is configurable through `RAG_OLLAMA_MODEL` and supports `gemma3`, `llama3`, `mistral`, `phi4`, or any locally installed Ollama-compatible model.
-
-Install and start Ollama, then download the chosen model once while connected to your approved model source:
+Run the FastAPI server from the repository root:
 
 ```powershell
-ollama serve
-ollama pull gemma3
+uvicorn app.api.main:app --reload
 ```
 
-The available prompt styles are `default`, `concise`, and `detailed` in `app/generation/prompt_templates/`. Set `RAG_GENERATION_PROMPT_TEMPLATE` in `.env` to choose one. The engine uses `RAG_GENERATION_TEMPERATURE`, `RAG_GENERATION_TOP_P`, `RAG_GENERATION_MAX_TOKENS`, `RAG_GENERATION_TIMEOUT_SECONDS`, and `RAG_GENERATION_STREAMING` for local model behavior.
+The default backend API base URL is `http://127.0.0.1:8000/api/v1`.
 
-```python
-from app.config import Settings
-from app.generation import GenerationPipeline
+## Start The Frontend
 
-answer = GenerationPipeline.from_settings(Settings()).answer("What are the key findings?")
-print(answer.answer)
-for citation in answer.citations:
-    print(citation.document_name, citation.page_number, citation.chunk_number)
+Run the Vite development server from the `frontend/` directory:
+
+```powershell
+cd frontend
+npm run dev
 ```
 
-## Offline evaluation
+The frontend uses `VITE_API_BASE_URL` when it is set. Otherwise, it falls back to `http://127.0.0.1:8000/api/v1`.
 
-Phase 5 evaluates the complete RAG result without needing cloud metrics. It computes retrieval volume, score, duplicate, document, and context measures; answer availability and optional reference-answer metrics (exact match, ROUGE-L, BLEU, precision, recall, F1); citation coverage and duplication; and normalized stage timings.
+## Expected Behavior Before Ingestion
 
-Use `EvaluationPipeline` for a completed query or `BenchmarkRunner` with JSON, YAML, or CSV records containing `question`, optional `reference_answer`, and optional `expected_documents`. Reports support JSON, CSV, and Markdown, selected through `RAG_EVALUATION_REPORT_FORMAT`; output defaults to `reports/`.
+Before you ingest any documents:
 
-```python
-from app.evaluation import EvaluationInput, EvaluationPipeline
-from app.config import Settings
+- system and health pages can still show backend and Ollama status
+- document lists will be empty
+- `metadata/metadata.db` and `vector_store/documents.faiss` may not exist yet
+- query results will remain unavailable until a local corpus has been ingested
 
-evaluation = EvaluationPipeline.from_settings(Settings())
-result = evaluation.evaluate_and_report(EvaluationInput(
-    question="What are the key findings?",
-    retrieved_chunks=tuple(retrieved_chunks),
-    reranked_chunks=tuple(reranked_chunks),
-    generated_answer=generated_answer,
-))
-```
+This is normal for a new workspace.
+
+## Retrieval And Generation Overview
+
+The retrieval pipeline embeds the query once with the local embedding model, performs dense FAISS search and sparse BM25 search, and merges results with Reciprocal Rank Fusion.
+
+The reranker then uses the local `BAAI/bge-reranker-base` cross-encoder to select the most relevant chunks before answer generation.
+
+Generation uses Ollama plus YAML prompt templates stored in `app/generation/prompt_templates/`. Available templates are `default`, `concise`, and `detailed`.
+
+## Evaluation
+
+The evaluation workflow supports local single-query evaluation and uploaded or file-based benchmark datasets in JSON, YAML, or CSV format. Reports are written to `reports/` using the configured format in `.env`.
 
 ## Tests
 
@@ -124,7 +177,7 @@ app/
   ingestion/    PDF loading, cleaning, chunking, embedding, FAISS, CLI
   models/       Pydantic data contracts
   utils/        Logging, hashes, and domain errors
-  api/          Reserved for Phase 3+
+  api/          FastAPI routes, schemas, and service wiring
   retrieval/    Dense search, BM25, filters, fusion, caching, orchestration
   reranker/     Cross-encoder config, scoring, cache, and pipeline
   generation/   YAML prompts, Ollama client, citations, and answer orchestration
@@ -133,10 +186,6 @@ documents/raw/          Original indexed PDFs
 documents/processed/    Cleaned chunk records
 vector_store/           Persistent FAISS index
 metadata/               SQLite database
-logs/                   Rotating ingestion logs
+logs/                   Rotating application logs
 tests/                  Unit tests
 ```
-
-## Next phase
-
-Phase 6 can provide a thin local service or user interface that exposes ingestion, search, answers, and evaluation reports without changing these reusable core modules.

@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     reranker_cache_size: int = Field(default=128, ge=1)
     ollama_model: str = "qwen3:latest"
     ollama_base_url: str = "http://127.0.0.1:11434"
+    cors_origins: str = "http://localhost:3000,http://localhost:5173"
     generation_temperature: float = Field(default=0.2, ge=0.0, le=2.0)
     generation_top_p: float = Field(default=0.9, gt=0.0, le=1.0)
     generation_max_tokens: int = Field(default=512, ge=1)
@@ -58,6 +59,11 @@ class Settings(BaseSettings):
         if self.evaluation_report_format not in {"json", "csv", "markdown"}:
             raise ValueError("evaluation_report_format must be json, csv, or markdown")
         return self
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        """Return configured frontend origins as a normalized list."""
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     def ensure_directories(self) -> None:
         """Create local data directories required by the pipeline."""

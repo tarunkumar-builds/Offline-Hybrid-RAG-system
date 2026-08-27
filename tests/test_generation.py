@@ -59,7 +59,7 @@ def test_answer_generator_returns_structured_answer_with_citations() -> None:
 
     assert result.answer.endswith("[S1].")
     assert result.citations[0].document_name == "report.pdf"
-    assert result.model_name == "gemma3"
+    assert result.model_name == "qwen3:latest"
     assert result.prompt_tokens == 2
 
 

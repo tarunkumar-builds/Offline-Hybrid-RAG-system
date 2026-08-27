@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.exception_handlers import configure_exception_handlers
+from app.api.dependencies import get_services
 from app.api.middleware import configure_middleware
 from app.api.router import api_router
 from app.utils.logging import configure_logging
@@ -21,25 +22,14 @@ async def lifespan(app: FastAPI):
     """
 
     logger.info("Initializing Offline Hybrid RAG services...")
-
-    # ---------------------------------------------------------
-    # TODO: Replace these placeholders with your actual services
-    # ---------------------------------------------------------
-
-    app.state.embedding_model = None
-    app.state.reranker = None
-    app.state.ollama_client = None
-    app.state.vector_store = None
-    app.state.database = None
-    app.state.settings = None
+    app.state.services = get_services()
 
     logger.info("Application startup complete.")
 
     yield
 
     logger.info("Shutting down Offline Hybrid RAG services...")
-
-    # Close database connections, clients, etc. here if needed.
+    app.state.services.close()
 
 
 def create_app() -> FastAPI:

@@ -202,9 +202,4 @@ def get_settings() -> Settings:
 @lru_cache
 def get_services() -> ApiServices:
     settings = get_settings()
-    print("Settings class:", type(settings))
-    print("Settings module:", type(settings).__module__)
-
-    print("SETTINGS =", settings.model_dump())
-
     return ApiServices(settings)

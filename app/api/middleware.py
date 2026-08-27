@@ -7,12 +7,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
+from app.api.dependencies import get_settings
+
 
 def configure_middleware(app: FastAPI) -> None:
     """Attach local-development CORS and structured request timing logs."""
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://localhost:5173"],
+        allow_origins=get_settings().cors_origin_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

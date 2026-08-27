@@ -3,6 +3,7 @@
 # ==========================================
 .env
 .env.local
+.env.production
 
 # ==========================================
 # Python Virtual Environment
@@ -22,6 +23,7 @@ __pycache__/
 # ==========================================
 frontend/node_modules/
 frontend/dist/
+frontend/.env.production
 
 # ==========================================
 # Logs
@@ -45,6 +47,9 @@ documents/processed/*
 vector_store/*
 !vector_store/.gitkeep
 *.faiss
+chroma/
+.chroma/
+chroma_db/
 
 # ==========================================
 # Metadata Database
@@ -69,3 +74,15 @@ reports/
 # ==========================================
 .DS_Store
 Thumbs.db
+
+# ==========================================
+# Local Model Artifacts
+# ==========================================
+*.gguf
+*.safetensors
+*.pt
+*.pth
+*.onnx
+*.bin
+*.npy
+*.npz
